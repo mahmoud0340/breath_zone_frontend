@@ -1,87 +1,230 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  useFocusEffect,
-  useIsFocused,
-  useNavigation,
-  useRoute,
-} from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
-export default function BreathingSession(props) {
-  const route = useRoute();
-  const navigation = useNavigation();
-  const { duration } = route.params as { duration: number };
-  const [timeLeft, setTimeLeft] = useState(duration);
+// --- Breathing Cycle Configuration (4-4-4-4 Box Breathing) ---
+const INHALE_DURATION = 4000;
+const HOLD_DURATION = 4000;
+const EXHALE_DURATION = 4000;
+const POST_EXHALE_PAUSE = 4000;
+const CYCLE_DURATION =
+  INHALE_DURATION + HOLD_DURATION + EXHALE_DURATION + POST_EXHALE_PAUSE;
+
+const { width } = Dimensions.get('window');
+
+// --- Main Component ---
+export default function BreathingSessionScreen({ navigation }) {
+  const [instruction, setInstruction] = useState('استعد للبدء...');
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [timer, setTimer] = useState(60); // Example: 1 minute session
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const isFocused = useIsFocused();
+  const animationLoop = useRef<Animated.CompositeAnimation | null>(null);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          saveSession();
-          navigation.navigate('Home');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  // --- Animation Logic ---
+  const startAnimation = () => {
+    // Ensure any existing animation is stopped before starting a new one
+    scaleAnim.setValue(1);
+    animationLoop.current?.stop();
 
-    const loop = () => {
+    animationLoop.current = Animated.loop(
       Animated.sequence([
+        // Inhale
         Animated.timing(scaleAnim, {
           toValue: 1.5,
-          duration: 3000,
+          duration: INHALE_DURATION,
           useNativeDriver: true,
         }),
+        // Hold
+        Animated.delay(HOLD_DURATION),
+        // Exhale
         Animated.timing(scaleAnim, {
           toValue: 1,
-          duration: 3000,
+          duration: EXHALE_DURATION,
           useNativeDriver: true,
         }),
-      ]).start(() => loop());
-    };
-    loop();
-
-    return () => clearInterval(interval);
-  }, [isFocused, props]);
-
-  const saveSession = async () => {
-    const s = await AsyncStorage.getItem('breath_sessions');
-    const t = await AsyncStorage.getItem('breath_time');
-    await AsyncStorage.setItem('breath_sessions', `${parseInt(s || '0') + 1}`);
-    await AsyncStorage.setItem(
-      'breath_time',
-      `${parseInt(t || '0') + duration}`,
+        // Post-Exhale Pause
+        Animated.delay(POST_EXHALE_PAUSE),
+      ]),
     );
+    animationLoop.current.start();
+  };
+
+  // --- State and Timer Management ---
+  useEffect(() => {
+    let instructionInterval: NodeJS.Timeout;
+    let timerInterval: NodeJS.Timeout;
+
+    if (isSessionActive) {
+      startAnimation();
+      setInstruction('استنشق'); // Initial instruction
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Update instructions based on the cycle
+      instructionInterval = setInterval(() => {
+        setInstruction('استنشق');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setTimeout(() => {
+          setInstruction('احبس نفسك');
+        }, INHALE_DURATION);
+        setTimeout(() => {
+          setInstruction('ازفر');
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }, INHALE_DURATION + HOLD_DURATION);
+      }, CYCLE_DURATION);
+
+      // Countdown timer
+      timerInterval = setInterval(() => {
+        setTimer((prev) => {
+          if (prev <= 1) {
+            endSession();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      // Clear intervals and stop animation when paused/inactive
+      animationLoop.current?.stop();
+      clearInterval(instructionInterval);
+      clearInterval(timerInterval);
+    }
+
+    return () => {
+      clearInterval(instructionInterval);
+      clearInterval(timerInterval);
+    };
+  }, [isSessionActive]);
+
+  const toggleSession = () => {
+    setIsSessionActive((prev) => !prev);
+  };
+
+  const endSession = () => {
+    setIsSessionActive(false);
+    setInstruction('أحسنت صنعًا!');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Navigate to a session complete screen after a delay
+    setTimeout(() => navigation.navigate('SessionComplete'), 2000);
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   return (
-    <View style={styles.container}>
-      <Animated.View
-        style={[styles.circle, { transform: [{ scale: scaleAnim }] }]}
+    <SafeAreaView style={styles.container}>
+      {/* --- Close Button --- */}
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={() => navigation.goBack()}
       >
-        <Text style={styles.timer}>{timeLeft} ثانية</Text>
-      </Animated.View>
-    </View>
+        <Ionicons name="close" size={30} color="#4A5568" />
+      </TouchableOpacity>
+
+      {/* --- Main Content --- */}
+      <View style={styles.content}>
+        <Text style={styles.timerText}>{formatTime(timer)}</Text>
+        <View style={styles.animationContainer}>
+          <Animated.View
+            style={[styles.circle, { transform: [{ scale: scaleAnim }] }]}
+          >
+            <View style={styles.circleInner} />
+            <View style={styles.circleCore} />
+          </Animated.View>
+          <Text style={styles.instructionText}>{instruction}</Text>
+        </View>
+
+        {/* --- Controls --- */}
+        <TouchableOpacity style={styles.controlButton} onPress={toggleSession}>
+          <Ionicons
+            name={isSessionActive ? 'pause' : 'play'}
+            size={32}
+            color="#FFFFFF"
+          />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
+// --- StyleSheet ---
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F7F9FC',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 10,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  timerText: {
+    fontSize: 22,
+    color: '#A0AEC0',
+    fontWeight: '600',
+  },
+  animationContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  instructionText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#2D3748',
+    position: 'absolute',
+  },
   circle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: '#90caf9',
+    width: width * 0.7,
+    height: width * 0.7,
+    borderRadius: (width * 0.7) / 2,
+    backgroundColor: 'rgba(215, 204, 242, 0.4)', // Outer-most, most transparent
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timer: {
-    fontSize: 32,
-    color: '#fff',
-    fontWeight: 'bold',
+  circleInner: {
+    width: '75%',
+    height: '75%',
+    borderRadius: (width * 0.7 * 0.75) / 2,
+    backgroundColor: 'rgba(215, 204, 242, 0.6)', // Middle circle
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleCore: {
+    width: '50%',
+    height: '50%',
+    borderRadius: (width * 0.7 * 0.5) / 2,
+    backgroundColor: 'rgba(215, 204, 242, 1)', // Center, solid color
+    position: 'absolute',
+  },
+  controlButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#5A67D8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#5A67D8',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
 });

@@ -8,12 +8,14 @@ import HomeScreen from '../screens/HomeScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/auth_context';
-import BreathingSession from '../screens/BreathingSession';
 import AboutScreen from '../screens/AboutUsScreen';
 import LibraryScreen from '../screens/LibraryContentScreen';
 import StatsScreen from '../screens/StatsScreen';
 import TherapyPathScreen from '../screens/TherapyPathScreen';
 import SmartChatScreen from '../screens/SmartChatScreen';
+import AnonChatScreen from '../screens/AnonChatScreen';
+import BreathingSessionScreen from '../screens/BreathingSession';
+import LibraryContentDetailScreen from '../screens/LibraryDetailScreen';
 
 const Drawer = createDrawerNavigator();
 
@@ -50,12 +52,20 @@ export default function DrawerNavigator() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen name="Home" component={HomeScreen} />
-      <Drawer.Screen name="BreathingSession" component={BreathingSession} />
+      <Drawer.Screen
+        name="BreathingSession"
+        component={BreathingSessionScreen}
+      />
       <Drawer.Screen name="AboutScreen" component={AboutScreen} />
       <Drawer.Screen name="LibraryScreen" component={LibraryScreen} />
+      <Drawer.Screen
+        name="LibraryContentDetail"
+        component={LibraryContentDetailScreen}
+      />
       <Drawer.Screen name="StatsScreen" component={StatsScreen} />
       <Drawer.Screen name="ThearbyScreen" component={TherapyPathScreen} />
       <Drawer.Screen name="SmartChat" component={SmartChatScreen} />
+      <Drawer.Screen name="AnonChatScreen" component={AnonChatScreen} />
       {/* Add more authenticated screens here */}
     </Drawer.Navigator>
   );

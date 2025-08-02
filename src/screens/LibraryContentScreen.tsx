@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { allContentData, ContentItem } from '../data/lib_content'; // Adjust path as needed
 import { Ionicons } from '@expo/vector-icons'; // Assuming you use Expo icons
+import { useNavigation } from '@react-navigation/native';
 
 // --- Filter Categories ---
 const filterCategories = [
@@ -24,6 +25,24 @@ const filterCategories = [
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 48) / 2;
+
+
+export interface ContentItem {
+  id: string;
+  title: string;
+  description: string;
+  readTime: number;
+  imageUri: string;
+  body: string;
+}
+
+// Define your stack and the params each screen expects
+export type RootStackParamList = {
+  LibraryContent: undefined; // This screen doesn't expect any params
+  LibraryContentDetail: { item: ContentItem }; // This screen REQUIRES an 'item' object of type ContentItem
+};
+
+
 
 // --- Main Component ---
 export default function LibraryContentScreen() {
@@ -105,8 +124,12 @@ export default function LibraryContentScreen() {
     </View>
   );
 
+  const navigation = useNavigation()
+
   const ContentCard = ({ item }: { item: ContentItem }) => (
-    <TouchableOpacity style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => {
+      navigation.navigate('LibraryContentDetail', { item: item });
+    }}>
       <Image source={{ uri: item.imageUri }} style={styles.cardImage} />
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={2}>
