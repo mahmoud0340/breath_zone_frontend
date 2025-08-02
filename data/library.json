@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": {
+      "en": "Relaxation Techniques",
+      "ar": "تقنيات الاسترخاء"
+    },
+    "topics": [
+      {
+        "title": {
+          "en": "Deep Breathing",
+          "ar": "التنفس العميق"
+        }
+      },
+      {
+        "title": {
+          "en": "Progressive Muscle Relaxation",
+          "ar": "استرخاء العضلات التدريجي"
+        }
+      }
+    ]
+  }
+]
